@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Admin Key</title>
+<style>
+body{font-family:system-ui,sans-serif;background:#111;color:#eee;max-width:420px;margin:40px auto;padding:16px}
+button{width:100%;padding:14px;margin:8px 0;border:0;border-radius:8px;font-weight:700;cursor:pointer}
+#gen{background:#FFD700;color:#111}
+#save{background:#2ecc71;color:#111}
+input,pre{width:100%;box-sizing:border-box;padding:12px;border-radius:8px;border:1px solid #333;background:#1a1a1a;color:#fff}
+pre{min-height:48px;word-break:break-all}
+.hint{color:#888;font-size:13px;line-height:1.5}
+</style>
+</head>
+<body>
+<h2>MENU VIP — Admin</h2>
+<p class="hint">Điền BIN_ID + Master Key JSONBin.io bên dưới (lưu localStorage).</p>
+<label>BIN_ID</label>
+<input id="binId" placeholder="xxxxxxxxxxxxxxxx"/>
+<label>Master Key</label>
+<input id="master" placeholder="$2a$10$..."/>
+<button id="gen">RANDOM KEY MỚI</button>
+<label>Key hiện tại</label>
+<pre id="cur">—</pre>
+<button id="save">LƯU LÊN JSONBIN</button>
+<p id="msg" class="hint"></p>
+<script>
+const LS_BIN='vip_bin', LS_MK='vip_mk';
+const binEl=document.getElementById('binId');
+const mkEl=document.getElementById('master');
+const cur=document.getElementById('cur');
+const msg=document.getElementById('msg');
+binEl.value=localStorage.getItem(LS_BIN)||'';
+mkEl.value=localStorage.getItem(LS_MK)||'';
+function rndKey(){
+  const a='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let s='VIP-';
+  for(let i=0;i<4;i++){for(let j=0;j<4;j++)s+=a[Math.floor(Math.random()*a.length)];if(i<3)s+='-';}
+  return s;
+}
+document.getElementById('gen').onclick=()=>{cur.textContent=rndKey();msg.textContent='Key local — bấm LƯU để đẩy server';};
+document.getElementById('save').onclick=async()=>{
+  const bin=binEl.value.trim(), mk=mkEl.value.trim(), key=cur.textContent.trim();
+  if(!bin||!mk||!key||key==='—'){msg.textContent='Thiếu BIN / Master Key / key';return;}
+  localStorage.setItem(LS_BIN,bin);localStorage.setItem(LS_MK,mk);
+  msg.textContent='Đang lưu...';
+  try{
+    const r=await fetch('https://api.jsonbin.io/v3/b/'+bin,{
+      method:'PUT',
+      headers:{'Content-Type':'application/json','X-Master-Key':mk},
+      body:JSON.stringify({key:key,updated:Date.now()})
+    });
+    msg.textContent=r.ok?'Đã lưu JSONBin':'Lỗi HTTP '+r.status;
+  }catch(e){msg.textContent='Lỗi: '+e.message;}
+};
+(async()=>{
+  const bin=binEl.value.trim(), mk=mkEl.value.trim();
+  if(!bin||!mk)return;
+  try{
+    const r=await fetch('https://api.jsonbin.io/v3/b/'+bin+'/latest',{headers:{'X-Master-Key':mk}});
+    if(!r.ok)return;
+    const j=await r.json();
+    const k=(j.record&&j.record.key)||(j.key)||'';
+    if(k)cur.textContent=k;
+  }catch(e){}
+})();
+</script>
+</body>
+</html>
